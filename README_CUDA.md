@@ -19,14 +19,40 @@ The validated delivery scope is the 1D phase-diagram path with `dynamic_potentia
 - Python 3.12 and the packages in `phase_diagram/simulation_core/requirements_CUDA.txt`.
 - Optional CPU-source reference: Intel oneAPI oneMKL with a discoverable `MKLConfig.cmake`.
 
+## One-click Windows setup
+
+The easiest supported path is to double-click `SETUP_WINDOWS.bat`, approve the
+Administrator prompt, and let it finish. It installs or repairs Python 3.12,
+Git, CMake, the Visual Studio 2022 C++ build tools, CUDA Toolkit 13.3.1, HDF5
+2.1.1, a project-local `.venv`, and all packages in `requirements_CUDA.txt`.
+The full transcript is saved as `SETUP_WINDOWS.log`.
+
+The CUDA installer can install its bundled display driver, and setup verifies
+that `nvidia-smi` works; it does not separately choose between NVIDIA's latest
+Game Ready and Studio driver branches. Setup also does not install the optional
+oneMKL CPU-source reference. The preserved opaque CPU executable remains
+available to the validation workflow without oneMKL.
+
+After setup, double-click these files in order:
+
+```text
+CHECK_CUDA.bat
+BUILD_CUDA.bat
+VALIDATE_CUDA.bat
+```
+
+Those three files now pause before closing. All CUDA batch files call
+`LOAD_CUDA_ENV.bat`, which automatically loads the project Python environment,
+CMake, CUDA, HDF5, and (when compiling) the Visual Studio x64 developer
+environment. A special VS command prompt and manual PATH editing are no longer
+required.
+
 ## Build
 
-Open an **x64 Native Tools Command Prompt for VS 2022**:
+If you prefer a terminal instead of the one-click setup, open PowerShell in the
+project directory. After `SETUP_WINDOWS.bat` has completed, the build is simply:
 
 ```bat
-cd /d C:\path\to\timedependent_GPU_native
-set HDF5_ROOT=C:\path\to\hdf5
-python -m pip install -r phase_diagram\simulation_core\requirements_CUDA.txt
 CHECK_CUDA.bat
 BUILD_CUDA.bat
 ```
@@ -59,11 +85,11 @@ This runs the requested static, zero-alpha, driven, both-Floquet-mode, frequent-
 
 The default tolerances in `validation_cases.json` are initial acceptance hypotheses. They become documented evidence only after a completed Windows report. Capture `nvidia-smi` output during a CUDA run as external GPU-use evidence.
 
-For an auditable first Windows pass, run these exact commands from the VS 2022 x64 tools prompt:
+For an auditable first Windows pass, run these exact commands from a terminal in
+the project directory after setup:
 
 ```bat
-cd /d C:\path\to\timedependent_GPU_native
-set HDF5_ROOT=C:\path\to\hdf5
+set GPE_NO_PAUSE=1
 CHECK_CUDA.bat > check_cuda.log 2>&1
 BUILD_CUDA.bat CPU_REFERENCE > build_cuda.log 2>&1
 start "RTX 5090 monitor" cmd /k nvidia-smi -l 1

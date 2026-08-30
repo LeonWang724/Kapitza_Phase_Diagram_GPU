@@ -1,11 +1,13 @@
 # Codex CUDA Port: generated build, run, and validation artifacts.
 build/
+.venv/
 results_cuda/
 validation/results/
 **/__pycache__/
 *.pyc
 *.pyo
 *.log
+SETUP_WINDOWS.log
 .vs/
 .DS_Store
 

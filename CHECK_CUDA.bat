@@ -3,6 +3,21 @@
 setlocal
 cd /d "%~dp0"
 
+call "%~dp0LOAD_CUDA_ENV.bat" --with-compiler
+call :check
+set "CHECK_RESULT=%ERRORLEVEL%"
+echo.
+if "%CHECK_RESULT%"=="0" (
+  echo CHECK PASSED. The required build environment is available.
+) else (
+  echo CHECK FAILED with exit code %CHECK_RESULT%.
+  echo Run SETUP_WINDOWS.bat to install or repair the dependencies.
+)
+if not defined GPE_NO_PAUSE pause
+exit /b %CHECK_RESULT%
+
+:check
+
 echo === NVIDIA driver and GPU ===
 nvidia-smi
 if errorlevel 1 exit /b 1
@@ -15,13 +30,32 @@ echo === CMake ===
 cmake --version
 if errorlevel 1 exit /b 1
 echo.
+echo === Visual Studio C++ x64 compiler ===
+where cl.exe
+if errorlevel 1 exit /b 1
+echo.
+echo === HDF5 development files ===
+if not defined HDF5_ROOT (
+  echo ERROR: HDF5_ROOT is not defined.
+  exit /b 1
+)
+if not exist "%HDF5_ROOT%\include\hdf5.h" (
+  echo ERROR: "%HDF5_ROOT%\include\hdf5.h" does not exist.
+  exit /b 1
+)
+if not exist "%HDF5_ROOT%\lib" (
+  echo ERROR: "%HDF5_ROOT%\lib" does not exist.
+  exit /b 1
+)
+echo HDF5_ROOT=%HDF5_ROOT%
+echo.
 echo === Python orchestration dependencies ===
 python --version
+if errorlevel 1 exit /b 1
 python -c "import numpy, scipy, tables, matplotlib; print('Python dependencies: OK')"
 if errorlevel 1 exit /b 1
 
 if exist "%~dp0build\bin\gpe1d_cuda.exe" (
-  if defined HDF5_ROOT set "PATH=%HDF5_ROOT%\bin;%PATH%"
   echo.
   echo === Native solver build ===
   "%~dp0build\bin\gpe1d_cuda.exe" --version-json
@@ -32,4 +66,3 @@ if exist "%~dp0build\bin\gpe1d_cuda.exe" (
   echo WARNING: build\bin\gpe1d_cuda.exe does not exist yet.
 )
 exit /b 0
-

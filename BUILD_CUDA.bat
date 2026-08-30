@@ -3,11 +3,26 @@
 setlocal
 cd /d "%~dp0"
 
+call "%~dp0LOAD_CUDA_ENV.bat" --with-compiler
+call :build %*
+set "BUILD_RESULT=%ERRORLEVEL%"
+echo.
+if "%BUILD_RESULT%"=="0" (
+  echo BUILD COMPLETED SUCCESSFULLY.
+) else (
+  echo BUILD FAILED with exit code %BUILD_RESULT%.
+  echo If a dependency is missing, rerun SETUP_WINDOWS.bat.
+)
+if not defined GPE_NO_PAUSE pause
+exit /b %BUILD_RESULT%
+
+:build
+
 where cmake >nul 2>nul || (echo ERROR: CMake is not on PATH.& exit /b 1)
 where nvcc >nul 2>nul || (echo ERROR: CUDA nvcc is not on PATH.& exit /b 1)
-where cl >nul 2>nul || (echo ERROR: Run from a Visual Studio x64 Native Tools prompt.& exit /b 1)
+where cl >nul 2>nul || (echo ERROR: Visual Studio 2022 C++ x64 tools are unavailable.& exit /b 1)
 if not defined HDF5_ROOT (
-  echo ERROR: Set HDF5_ROOT to the HDF5 install containing include, lib, and bin.
+  echo ERROR: HDF5_ROOT is unavailable.
   exit /b 1
 )
 
@@ -28,4 +43,3 @@ echo.
 echo Built: %~dp0build\bin\gpe1d_cuda.exe
 "%~dp0build\bin\gpe1d_cuda.exe" --version-json
 exit /b %errorlevel%
-

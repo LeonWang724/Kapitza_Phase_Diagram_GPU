@@ -2,7 +2,14 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-if defined HDF5_ROOT set "PATH=%HDF5_ROOT%\bin;%PATH%"
+call "%~dp0LOAD_CUDA_ENV.bat"
 python validation\run_validation.py %*
-exit /b %errorlevel%
-
+set "VALIDATION_RESULT=%ERRORLEVEL%"
+echo.
+if "%VALIDATION_RESULT%"=="0" (
+  echo VALIDATION COMPLETED SUCCESSFULLY.
+) else (
+  echo VALIDATION FAILED with exit code %VALIDATION_RESULT%.
+)
+if not defined GPE_NO_PAUSE pause
+exit /b %VALIDATION_RESULT%

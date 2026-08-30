@@ -2,7 +2,6 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-if defined HDF5_ROOT set "PATH=%HDF5_ROOT%\bin;%PATH%"
+call "%~dp0LOAD_CUDA_ENV.bat"
 python phase_diagram\simulation_core\run_single_CUDA.py %*
 exit /b %errorlevel%
-
