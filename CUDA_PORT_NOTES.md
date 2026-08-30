@@ -17,6 +17,7 @@ The executable bundled with the source and the executable used by the phase-diag
 - The workflow-compatible `InitOverlap` field is currently defined explicitly as the discrete sum `sum_j |psi_initial[j]|^2 |psi[j]|^2`, without `dx`. Its scale is consistent with observed workflow CSV values when `step_x=1`, but equivalence to the opaque executable is not claimed. A controlled non-unit-`step_x` executable run is needed to recover whether the legacy field includes an integration step.
 - `legacy` Floquet mode multiplies the already-scaled working array by each cosine. `physical` always multiplies the unchanged base Floquet array. The matching mode must be established on Windows before changing the provisional default.
 - Strict CUDA floating point disables FMA and does not enable fast math. CPU/CUDA FFT and reduction order can still produce roundoff differences.
+- The initial wavefunction/density tolerances use binary HDF5 values. Energy comparisons use the supplied CPU status CSV and therefore cannot demand more precision than its approximately six-significant-digit serialization; the initial energy relative threshold is `5e-6` and remains provisional until Windows data is available.
 
 ## Phase-diagram quantity
 

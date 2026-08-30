@@ -7,7 +7,7 @@
     "wavefunction_relative_l2_tolerance": 1e-8,
     "density_max_absolute_tolerance": 1e-10,
     "norm_absolute_tolerance": 1e-11,
-    "energy_relative_tolerance": 1e-8
+    "energy_relative_tolerance": 5e-6
   },
   "cases": [
     {
