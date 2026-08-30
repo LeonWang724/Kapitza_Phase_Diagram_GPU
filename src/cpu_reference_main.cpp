@@ -2,8 +2,8 @@
 #include <iostream>
 
 #include "mkl.h"
-#include "config.h"
-#include "math_routines_1d.h"
+#include <config.h>
+#include <math_routines_1d.h>
 
 int main(int argc, char* argv[]) {
     config_data configuration;
