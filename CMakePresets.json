@@ -1,5 +1,4 @@
 {
-  "$comment": "Codex CUDA Port: Windows Visual Studio presets for gpe1d_cuda.",
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
@@ -41,4 +40,3 @@
     }
   ]
 }
-
