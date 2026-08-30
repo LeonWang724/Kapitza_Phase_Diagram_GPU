@@ -5,7 +5,7 @@ This tree contains a native C++/CUDA 1D solver named `gpe1d_cuda.exe`. Python on
 
 ## Validation status
 
-The source and workflow are prepared, but **not yet compiled or numerically validated**. The preparation machine is macOS without CMake, `nvcc`, an NVIDIA GPU, or `nvidia-smi`. Do not treat this README or a successful configure as evidence of numerical equivalence.
+The native target has now configured and compiled on the Windows CUDA machine, but it is **not yet numerically validated**. Do not treat a successful build as evidence of numerical equivalence.
 
 The validated delivery scope is the 1D phase-diagram path with `dynamic_potential=false`. Stochastic dynamic potential, 2D, and 3D stop with an explicit error or remain deferred; they are not silently run through a different implementation.
 
@@ -18,27 +18,26 @@ The validated delivery scope is the 1D phase-diagram path with `dynamic_potentia
 - Ninja 1.11 or newer. The `Ninja Multi-Config` generator uses the MSVC and CUDA compiler environment loaded by `LOAD_CUDA_ENV.bat`.
 - A 64-bit HDF5 development installation containing `include`, `lib`, and runtime `bin` directories. Set `HDF5_ROOT` to that installation. The HDF Group's official CMake guide documents `HDF5_ROOT` and the Windows runtime path: https://github.com/HDFGroup/hdf5/blob/develop/docs/INSTALL_CMake.md
 - Python 3.12 and the packages in `phase_diagram/simulation_core/requirements_CUDA.txt`.
-- Optional CPU-source reference: Intel oneAPI oneMKL with a discoverable `MKLConfig.cmake`.
+- Intel oneAPI oneMKL development files for the source-built CPU validation reference. Setup installs these in the project `.venv`.
 
 ## One-click Windows setup
 
 The easiest supported path is to double-click `SETUP_WINDOWS.bat`, approve the
 Administrator prompt, and let it finish. It installs or repairs Python 3.12,
 Git, CMake, Ninja, the Visual Studio 2022 C++ build tools, CUDA Toolkit 13.3.1, HDF5
-2.1.1, a project-local `.venv`, and all packages in `requirements_CUDA.txt`.
+2.1.1, a project-local `.venv`, oneMKL, and all packages in `requirements_CUDA.txt`.
 The full transcript is saved as `SETUP_WINDOWS.log`.
 
 Setup permanently adds the installed Python directory, Python `Scripts`, and
 the project `.venv\Scripts` directory to the current user's PATH. It records
 the selected interpreter in `GPE_PYTHON` and the project directory in
-`GPE_CUDA_PROJECT_ROOT`. CMake, CUDA, and HDF5 are added to the machine PATH.
+`GPE_CUDA_PROJECT_ROOT`. CMake, CUDA, and HDF5 are added to the machine PATH;
+the project-local oneMKL paths are saved for the current user.
 Open a new VS Code terminal after setup to inherit those persistent values.
 
 The CUDA installer can install its bundled display driver, and setup verifies
 that `nvidia-smi` works; it does not separately choose between NVIDIA's latest
-Game Ready and Studio driver branches. Setup also does not install the optional
-oneMKL CPU-source reference. The preserved opaque CPU executable remains
-available to the validation workflow without oneMKL.
+Game Ready and Studio driver branches.
 
 After setup, double-click these files in order:
 
@@ -50,7 +49,7 @@ VALIDATE_CUDA.bat
 
 Those three files now pause before closing. All CUDA batch files call
 `LOAD_CUDA_ENV.bat`, which automatically loads the project Python environment,
-CMake, CUDA, HDF5, and (when compiling) the Visual Studio x64 developer
+CMake, CUDA, HDF5, oneMKL, and (when compiling) the Visual Studio x64 developer
 environment. A special VS command prompt and manual PATH editing are no longer
 required.
 
@@ -68,10 +67,11 @@ CHECK_CUDA.bat
 BUILD_CUDA.bat
 ```
 
-To also compile the untouched supplied source as `gpe1d_cpu_reference.exe`:
+The normal build compiles both `gpe1d_cuda.exe` and the untouched 1D source as
+`gpe1d_cpu_reference.exe`. For a CUDA-only development build:
 
 ```bat
-BUILD_CUDA.bat CPU_REFERENCE
+BUILD_CUDA.bat CUDA_ONLY
 ```
 
 The native executable is `build\bin\gpe1d_cuda.exe`. The build embeds its Git commit, dirty state, compilers, CUDA Toolkit, architecture selection, and UTC build time. No fast-math option is used; strict floating-point mode disables FMA by default for traceability.
@@ -92,7 +92,7 @@ RUN_SINGLE_CUDA.bat phase_diagram\simulation_core\gpe1d.config --floquet-mode le
 VALIDATE_CUDA.bat
 ```
 
-This runs the requested static, zero-alpha, driven, both-Floquet-mode, frequent-snapshot, non-unit-`step_x` diagnostic probe, and 3x3 grid checks. When present, both the source-built CPU executable and opaque workflow executable are used. Reports are written under `validation\results\validation_*`.
+This runs the requested static, zero-alpha, driven, both-Floquet-mode, frequent-snapshot, non-unit-`step_x` diagnostic probe, and 3x3 grid checks. The source-built CPU executable is the required reference. If a preserved opaque workflow executable is present locally, it is used as an additional reference but is not required. Reports are written under `validation\results\validation_*`.
 
 The default tolerances in `validation_cases.json` are initial acceptance hypotheses. They become documented evidence only after a completed Windows report. Capture `nvidia-smi` output during a CUDA run as external GPU-use evidence.
 
@@ -102,12 +102,12 @@ the project directory after setup:
 ```bat
 set GPE_NO_PAUSE=1
 CHECK_CUDA.bat > check_cuda.log 2>&1
-BUILD_CUDA.bat CPU_REFERENCE > build_cuda.log 2>&1
+BUILD_CUDA.bat > build_cuda.log 2>&1
 start "RTX 5090 monitor" cmd /k nvidia-smi -l 1
 VALIDATE_CUDA.bat > validation_console.log 2>&1
 ```
 
-Keep `check_cuda.log`, `build_cuda.log`, `validation_console.log`, and the newest `validation\results\validation_*` directory together. If the optional CPU-source build cannot find oneMKL, run `BUILD_CUDA.bat` without `CPU_REFERENCE`; validation will still compare against the preserved opaque executable and will record that the source-built reference is absent.
+Keep `check_cuda.log`, `build_cuda.log`, `validation_console.log`, and the newest `validation\results\validation_*` directory together. A clean Git clone contains the initial-state generator, base configuration, and the untouched 1D source needed for this validation; it does not depend on the old opaque executable.
 
 ## Full phase diagram
 

@@ -53,10 +53,23 @@ if not exist "%HDF5_ROOT%\lib" (
 )
 echo HDF5_ROOT=%HDF5_ROOT%
 echo.
+echo === Intel oneMKL CPU-reference files ===
+if not defined MKL_DIR (
+  echo ERROR: MKL_DIR is not defined. Rerun SETUP_WINDOWS.bat.
+  exit /b 1
+)
+if not exist "%MKL_DIR%\MKLConfig.cmake" (
+  echo ERROR: "%MKL_DIR%\MKLConfig.cmake" does not exist.
+  exit /b 1
+)
+echo MKLROOT=%MKLROOT%
+echo.
 echo === Python orchestration dependencies ===
 python --version
 if errorlevel 1 exit /b 1
 python -c "import numpy, scipy, tables, matplotlib; print('Python dependencies: OK')"
+if errorlevel 1 exit /b 1
+python -c "import sys; sys.path.insert(0, r'phase_diagram\simulation_core'); import create_initial_state_function; print('Validation input generator: OK')"
 if errorlevel 1 exit /b 1
 
 if exist "%~dp0build\bin\gpe1d_cuda.exe" (
@@ -68,5 +81,8 @@ if exist "%~dp0build\bin\gpe1d_cuda.exe" (
   if errorlevel 1 exit /b 1
 ) else (
   echo WARNING: build\bin\gpe1d_cuda.exe does not exist yet.
+)
+if not exist "%~dp0build\bin\gpe1d_cpu_reference.exe" (
+  echo WARNING: build\bin\gpe1d_cpu_reference.exe does not exist yet. Run BUILD_CUDA.bat.
 )
 exit /b 0

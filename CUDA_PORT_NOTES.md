@@ -33,6 +33,12 @@ The latest historical scripts select the final 30 HDF5 snapshots, cut 100 points
 - Local tests: every file under `tests/`.
 - Documentation: `README_CUDA.md` and this file.
 
+The clean-clone validation path also tracks the unchanged 1D reference `.cpp`
+and `.h` files, `create_initial_state_function.py`, `config_value.py`, and the
+base `gpe1d.config`. Large historical outputs and the opaque executable remain
+excluded. `src/cpu_reference_main.cpp` is a new 1D-only wrapper around those
+untouched CPU source files.
+
 No copied original source or workflow file was modified to implement the port.
 
 ## Deferred work

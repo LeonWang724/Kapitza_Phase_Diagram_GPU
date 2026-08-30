@@ -27,12 +27,19 @@ if not defined HDF5_ROOT (
   exit /b 1
 )
 
-set "CONFIGURE_PRESET=windows-ninja"
-set "BUILD_PRESET=windows-release"
-if /I "%~1"=="CPU_REFERENCE" (
-  set "CONFIGURE_PRESET=windows-ninja-with-cpu-reference"
-  set "BUILD_PRESET=windows-release-with-cpu-reference"
-  echo Building the optional untouched oneMKL CPU reference too.
+set "CONFIGURE_PRESET=windows-ninja-with-cpu-reference"
+set "BUILD_PRESET=windows-release-with-cpu-reference"
+if /I "%~1"=="CUDA_ONLY" (
+  set "CONFIGURE_PRESET=windows-ninja"
+  set "BUILD_PRESET=windows-release"
+  echo Building only the native CUDA solver.
+) else (
+  if not defined MKL_DIR (
+    echo ERROR: The project-local oneMKL development package is unavailable.
+    echo Rerun SETUP_WINDOWS.bat, then retry BUILD_CUDA.bat.
+    exit /b 1
+  )
+  echo Building the native CUDA solver and the source-based CPU reference.
 )
 
 if exist "%~dp0build\CMakeCache.txt" (
@@ -44,12 +51,13 @@ if exist "%~dp0build\CMakeCache.txt" (
   )
 )
 
-cmake --preset "%CONFIGURE_PRESET%" -DHDF5_ROOT="%HDF5_ROOT%"
+cmake --preset "%CONFIGURE_PRESET%" -DHDF5_ROOT="%HDF5_ROOT%" -DMKL_DIR="%MKL_DIR%"
 if errorlevel 1 exit /b 1
 cmake --build --preset "%BUILD_PRESET%" --parallel
 if errorlevel 1 exit /b 1
 
 echo.
 echo Built: %~dp0build\bin\gpe1d_cuda.exe
+if exist "%~dp0build\bin\gpe1d_cpu_reference.exe" echo Built: %~dp0build\bin\gpe1d_cpu_reference.exe
 "%~dp0build\bin\gpe1d_cuda.exe" --version-json
 exit /b %errorlevel%

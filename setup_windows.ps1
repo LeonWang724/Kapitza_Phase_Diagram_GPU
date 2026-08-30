@@ -374,6 +374,13 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'Python dependency installation failed.'
     }
+    $mklRoot = Join-Path $venv 'Library'
+    $mklDirectory = Join-Path $mklRoot 'lib\cmake\mkl'
+    $mklConfig = Join-Path $mklDirectory 'MKLConfig.cmake'
+    $mklBin = Join-Path $mklRoot 'bin'
+    if (-not (Test-Path $mklConfig)) {
+        throw 'The oneMKL development package was installed, but MKLConfig.cmake was not found.'
+    }
 
     Write-Host "`n=== Saving dependency paths for future terminals ===" -ForegroundColor Cyan
     $pythonDirectory = Split-Path -Parent $python
@@ -389,13 +396,19 @@ try {
     }
     Add-UserPathEntry -Entry $ninjaBin
     Add-UserPathEntry -Entry $venvScripts -Prepend
+    Add-UserPathEntry -Entry $mklBin
     [Environment]::SetEnvironmentVariable('GPE_CUDA_PROJECT_ROOT', $PSScriptRoot, 'User')
     [Environment]::SetEnvironmentVariable('GPE_PYTHON', $venvPython, 'User')
+    [Environment]::SetEnvironmentVariable('MKLROOT', $mklRoot, 'User')
+    [Environment]::SetEnvironmentVariable('MKL_DIR', $mklDirectory, 'User')
 
     Refresh-ProcessPath
-    $env:Path = "$venvScripts;$ninjaBin;$(Join-Path $cudaRoot 'bin');$(Join-Path $hdf5Root 'bin');$cmakeBin;$env:Path"
+    $env:MKLROOT = $mklRoot
+    $env:MKL_DIR = $mklDirectory
+    $env:Path = "$venvScripts;$mklBin;$ninjaBin;$(Join-Path $cudaRoot 'bin');$(Join-Path $hdf5Root 'bin');$cmakeBin;$env:Path"
     Write-Host "Project Python: $venvPython"
-    Write-Host 'Python, pip, CMake, Ninja, CUDA, and HDF5 paths are now persistent.'
+    Write-Host "oneMKL:        $mklRoot"
+    Write-Host 'Python, pip, CMake, Ninja, CUDA, HDF5, and oneMKL paths are now persistent.'
 
     Write-Host "`n=== Verifying the complete environment ===" -ForegroundColor Cyan
     $env:GPE_NO_PAUSE = '1'
