@@ -59,6 +59,19 @@ This runs the requested static, zero-alpha, driven, both-Floquet-mode, frequent-
 
 The default tolerances in `validation_cases.json` are initial acceptance hypotheses. They become documented evidence only after a completed Windows report. Capture `nvidia-smi` output during a CUDA run as external GPU-use evidence.
 
+For an auditable first Windows pass, run these exact commands from the VS 2022 x64 tools prompt:
+
+```bat
+cd /d C:\path\to\timedependent_GPU_native
+set HDF5_ROOT=C:\path\to\hdf5
+CHECK_CUDA.bat > check_cuda.log 2>&1
+BUILD_CUDA.bat CPU_REFERENCE > build_cuda.log 2>&1
+start "RTX 5090 monitor" cmd /k nvidia-smi -l 1
+VALIDATE_CUDA.bat > validation_console.log 2>&1
+```
+
+Keep `check_cuda.log`, `build_cuda.log`, `validation_console.log`, and the newest `validation\results\validation_*` directory together. If the optional CPU-source build cannot find oneMKL, run `BUILD_CUDA.bat` without `CPU_REFERENCE`; validation will still compare against the preserved opaque executable and will record that the source-built reference is absent.
+
 ## Full phase diagram
 
 Edit only the marked physical parameter section near the top of `run_phase_diagram_CUDA.py`, then:
