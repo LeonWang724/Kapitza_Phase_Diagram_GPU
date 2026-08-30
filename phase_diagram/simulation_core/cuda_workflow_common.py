@@ -12,6 +12,25 @@ from typing import Any
 
 SCRIPT_DIRECTORY = Path(__file__).resolve().parent
 PORT_ROOT = SCRIPT_DIRECTORY.parents[1]
+RESULTS_DIRECTORY = SCRIPT_DIRECTORY / "results_cuda"
+
+
+def parameter_token(value: float) -> str:
+    """Return a compact, Windows-filename-safe representation of a parameter."""
+    return f"{float(value):.10g}".replace("-", "m").replace("+", "").replace(".", "p")
+
+
+def phase_dataset_label(
+    lattice_depth_v0_er: float,
+    initial_lattice_depth_v0_er: float,
+    phase_radians: float,
+) -> str:
+    """Build the shared descriptive label used by datasets and analysis files."""
+    return (
+        f"LatticeDepth_{parameter_token(lattice_depth_v0_er)}ER_"
+        f"InitialDepth_{parameter_token(initial_lattice_depth_v0_er)}ER_"
+        f"Phase_{parameter_token(phase_radians)}rad"
+    )
 
 
 def utc_now() -> str:
@@ -133,4 +152,3 @@ def run_logged(command: list[str], cwd: Path, log_path: Path) -> int:
             log.write(line)
             log.flush()
         return process.wait()
-

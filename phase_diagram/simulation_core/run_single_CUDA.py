@@ -18,7 +18,10 @@ def main() -> int:
     parser.add_argument("config", nargs="?", type=Path, default=SCRIPT_DIRECTORY / "gpe1d.config")
     parser.add_argument("--executable", type=Path)
     parser.add_argument("--device", type=int, default=0)
-    parser.add_argument("--floquet-mode", choices=("legacy", "physical"), default="legacy")
+    parser.add_argument(
+        "--floquet-mode", choices=("physical",), default="physical",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--allow-nonempty-output", action="store_true")
     arguments = parser.parse_args()
 
@@ -51,4 +54,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

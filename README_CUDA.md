@@ -5,7 +5,10 @@ This tree contains a native C++/CUDA 1D solver named `gpe1d_cuda.exe`. Python on
 
 ## Validation status
 
-The native target has now configured and compiled on the Windows CUDA machine, but it is **not yet numerically validated**. Do not treat a successful build as evidence of numerical equivalence.
+The native target has configured and compiled on the Windows CUDA machine. The
+physical Floquet update reproduced the established CPU phase diagram; it is now
+the workflow default. The cumulative source-compatibility behavior remains an
+internal validation probe and is not offered by the phase-diagram launchers.
 
 The validated delivery scope is the 1D phase-diagram path with `dynamic_potential=false`. Stochastic dynamic potential, 2D, and 3D stop with an explicit error or remain deferred; they are not silently run through a different implementation.
 
@@ -81,10 +84,11 @@ The native executable is `build\bin\gpe1d_cuda.exe`. The build embeds its Git co
 Make sure the config names an empty output directory, then run:
 
 ```bat
-RUN_SINGLE_CUDA.bat phase_diagram\simulation_core\gpe1d.config --floquet-mode legacy
+RUN_SINGLE_CUDA.bat phase_diagram\simulation_core\gpe1d.config
 ```
 
-`legacy` cumulatively scales the working Floquet array as the supplied C++ source does. `physical` evaluates the unchanged base array times the current cosine. Legacy is a provisional source-compatibility default until the opaque executable comparison decides the workflow compatibility default.
+Single runs use the verified physical update, which evaluates the unchanged
+Floquet base potential times the current cosine.
 
 ## Validation before a full grid
 
@@ -92,7 +96,12 @@ RUN_SINGLE_CUDA.bat phase_diagram\simulation_core\gpe1d.config --floquet-mode le
 VALIDATE_CUDA.bat
 ```
 
-This runs the requested static, zero-alpha, driven, both-Floquet-mode, frequent-snapshot, non-unit-`step_x` diagnostic probe, and 3x3 grid checks. The source-built CPU executable is the required reference. If a preserved opaque workflow executable is present locally, it is used as an additional reference but is not required. Reports are written under `validation\results\validation_*`.
+This runs the requested static, zero-alpha, driven, source-compatibility,
+physical-update, frequent-snapshot, non-unit-`step_x` diagnostic probe, and 3x3
+grid checks. The source-built CPU executable is the required reference. If a
+preserved opaque workflow executable is present locally, it is used as an
+additional reference but is not required. Reports are written under
+`validation\results\validation_*`.
 
 The default tolerances in `validation_cases.json` are initial acceptance hypotheses. They become documented evidence only after a completed Windows report. Capture `nvidia-smi` output during a CUDA run as external GPU-use evidence.
 
@@ -111,14 +120,26 @@ Keep `check_cuda.log`, `build_cuda.log`, `validation_console.log`, and the newes
 
 ## Full phase diagram
 
-Edit only the marked physical parameter section near the top of `run_phase_diagram_CUDA.py`, then:
+Edit only the marked physical parameter section near the top of
+`run_phase_diagram_CUDA.py`. `INITIAL_LATTICE_DEPTH_V0_ER` separately records
+the depth used to construct the initial Bloch state. Then run:
 
 ```bat
-RUN_PHASE_DIAGRAM_CUDA.bat --floquet-mode legacy
-MAKE_PHASE_DIAGRAM_CUDA.bat phase_diagram\simulation_core\results_cuda\cuda_TIMESTAMP\run_manifest.json
+RUN_PHASE_DIAGRAM_CUDA.bat
+MAKE_PHASE_DIAGRAM_CUDA.bat
 ```
 
-Each grid creates a unique result root. Every run has isolated inputs, config, status, log, and `out_###` directory. The plotter reads parameter ordering exclusively from `run_manifest.json`.
+The make command automatically selects the newest completed dataset. You may
+instead pass a dataset folder name or manifest path. Each grid folder is named
+like `LatticeDepth_20ER_InitialDepth_40ER_Phase_0rad_cuda_TIMESTAMP`. Every run
+has isolated inputs, config, status, log, and `out_###` directory.
+
+Every analysis execution writes a new, timestamped PNG, CSV, and NPZ under that
+dataset's `analysis` directory, so earlier analyses are never overwritten. The
+dataset name and physical parameters appear in every artifact filename. To pin
+a particular dataset or customize the plot title and axis labels, edit the
+clearly marked configuration values near the top of
+`make_phase_diagram_CUDA.py`. Command-line overrides are also available.
 
 ## Numerical correspondence
 

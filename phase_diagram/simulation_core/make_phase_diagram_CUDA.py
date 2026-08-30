@@ -1,4 +1,4 @@
-"""Codex CUDA Port: reproduce the established metric using a saved run manifest."""
+"""Create a preserved phase-diagram analysis from a named or latest CUDA dataset."""
 
 from __future__ import annotations
 
@@ -6,11 +6,26 @@ import argparse
 import csv
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import tables as tb
+
+from cuda_workflow_common import RESULTS_DIRECTORY, phase_dataset_label
+
+
+# ---------------------------------------------------------------------------
+# PLOT CONFIGURATION. Leave DATASET_NAME as None to analyze the newest
+# completed dataset, or paste one results_cuda folder name between the quotes.
+# Set PLOT_TITLE to None to build it from lattice depth, initial depth, and phase.
+# ---------------------------------------------------------------------------
+DATASET_NAME: str | None = None
+PLOT_TITLE: str | None = None
+X_AXIS_TITLE = r"$\alpha$"
+Y_AXIS_TITLE = r"$\nu_{\mathrm{flo}}$ (Hz)"
+COLORBAR_TITLE = r"Standard Deviation of $|\psi|^2$"
 
 
 def iteration(path: Path) -> int:
@@ -25,7 +40,68 @@ def read_probability(path: Path) -> np.ndarray:
     return real * real + imaginary * imaginary
 
 
-def analyze(manifest_path: Path) -> dict[str, Path]:
+def grid_parameter_label(grid: dict) -> str:
+    lattice_depth = float(grid["lattice_depth_v0_er"])
+    initial_depth = float(
+        grid.get("initial_lattice_depth_v0_er", 2.0 * lattice_depth)
+    )
+    phase = float(grid.get("phase_radians", 0.0))
+    return phase_dataset_label(lattice_depth, initial_depth, phase)
+
+
+def automatic_plot_title(grid: dict) -> str:
+    lattice_depth = float(grid["lattice_depth_v0_er"])
+    initial_depth = float(
+        grid.get("initial_lattice_depth_v0_er", 2.0 * lattice_depth)
+    )
+    phase = float(grid.get("phase_radians", 0.0))
+    return (
+        f"Lattice Depth {lattice_depth:g} E_R * "
+        f"Initial Depth {initial_depth:g} E_R * Phase {phase:g} rad"
+    )
+
+
+def resolve_manifest(dataset: str | Path | None = None) -> Path:
+    """Resolve a manifest path, results folder, dataset name, or newest dataset."""
+    selected = dataset if dataset is not None else DATASET_NAME
+    if selected is not None:
+        candidate = Path(selected).expanduser()
+        if candidate.is_file():
+            manifest_path = candidate
+        elif candidate.is_dir():
+            manifest_path = candidate / "run_manifest.json"
+        else:
+            manifest_path = RESULTS_DIRECTORY / str(selected) / "run_manifest.json"
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"Completed dataset manifest not found: {manifest_path}")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("status") != "completed":
+            raise RuntimeError(f"Dataset is not completed: {manifest_path.parent.name}")
+        return manifest_path.resolve()
+
+    completed: list[tuple[float, Path]] = []
+    for manifest_path in RESULTS_DIRECTORY.glob("*/run_manifest.json"):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if manifest.get("status") == "completed":
+            completed.append((manifest_path.stat().st_mtime, manifest_path))
+    if not completed:
+        raise FileNotFoundError(
+            f"No completed CUDA datasets were found under {RESULTS_DIRECTORY}"
+        )
+    return max(completed, key=lambda item: item[0])[1].resolve()
+
+
+def analyze(
+    manifest_path: Path,
+    *,
+    plot_title: str | None = None,
+    x_axis_title: str = X_AXIS_TITLE,
+    y_axis_title: str = Y_AXIS_TITLE,
+    colorbar_title: str = COLORBAR_TITLE,
+) -> dict[str, Path]:
     manifest_path = manifest_path.resolve()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("status") != "completed":
@@ -57,8 +133,9 @@ def analyze(manifest_path: Path) -> dict[str, Path]:
             if probability.size <= 2 * cut:
                 raise ValueError(f"Spatial cut removes all points from {snapshot}")
             cropped = probability[cut:-cut]
-            # CUDA PORT: this is the quantity actually assigned by the latest
-            # historical scripts after their standard-deviation value is overwritten.
+            # This reproduces the established plot numerically. The historical
+            # script labels it as a standard deviation but overwrites that
+            # calculation with the discrete sum of |psi|^4.
             values.append(float(np.sum(cropped * cropped)))
         mean_metric = float(np.mean(values))
         alpha_index = int(run["alpha_index"])
@@ -80,11 +157,24 @@ def analyze(manifest_path: Path) -> dict[str, Path]:
 
     analysis_directory = root / "analysis"
     analysis_directory.mkdir(exist_ok=True)
-    npz_path = analysis_directory / "phase_diagram_metric.npz"
-    csv_path = analysis_directory / "phase_diagram_metric.csv"
-    image_path = analysis_directory / "phase_diagram_CUDA.png"
+    dataset_name = str(manifest.get("dataset_name", root.name))
+    descriptive_name = str(manifest.get("parameter_label", grid_parameter_label(grid)))
+    safe_dataset_name = re.sub(r"[^A-Za-z0-9._-]+", "_", dataset_name)
+    safe_descriptive_name = re.sub(r"[^A-Za-z0-9._-]+", "_", descriptive_name)
+    artifact_identity = (
+        safe_dataset_name
+        if safe_descriptive_name.casefold() in safe_dataset_name.casefold()
+        else f"{safe_descriptive_name}_{safe_dataset_name}"
+    )
+    analyzed_utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    artifact_stem = f"{artifact_identity}_Analysis_{analyzed_utc}"
+    npz_path = analysis_directory / f"{artifact_stem}_metric.npz"
+    csv_path = analysis_directory / f"{artifact_stem}_metric.csv"
+    image_path = analysis_directory / f"{artifact_stem}_phase_diagram.png"
     np.savez(
         npz_path,
+        dataset_name=dataset_name,
+        parameter_label=descriptive_name,
         alpha_values=alpha_values,
         drive_frequency_hz_values=frequency_values,
         metric_matrix=metric,
@@ -99,29 +189,46 @@ def analyze(manifest_path: Path) -> dict[str, Path]:
     image = axis.pcolormesh(
         alpha_mesh, frequency_mesh, metric, shading="nearest", cmap=contract["colormap"]
     )
-    figure.colorbar(
-        image,
-        ax=axis,
-        label=rf"Mean discrete $\sum_x |\psi(x)|^4$ (last {final_count} snapshots)",
-    )
-    axis.set_xlabel(r"$\alpha$")
-    axis.set_ylabel(r"$\nu_{\mathrm{flo}}$ (Hz)")
+    figure.colorbar(image, ax=axis, label=colorbar_title)
+    axis.set_xlabel(x_axis_title)
+    axis.set_ylabel(y_axis_title)
     if contract["frequency_axis_inverted"]:
         axis.invert_yaxis()
-    axis.set_title(
-        rf"Native CUDA Floquet Phase Diagram, $V_0={grid['lattice_depth_v0_er']:g}E_R$"
-    )
+    axis.set_title(plot_title or automatic_plot_title(grid))
     figure.tight_layout()
     figure.savefig(image_path, dpi=300, bbox_inches="tight")
-    print(f"Saved analysis to {analysis_directory}")
+    plt.close(figure)
+    print(f"Saved preserved analysis files to {analysis_directory}")
+    print(f"  {image_path.name}")
+    print(f"  {csv_path.name}")
+    print(f"  {npz_path.name}")
     return {"npz": npz_path, "csv": csv_path, "image": image_path}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("manifest", type=Path, help="path to run_manifest.json")
+    parser.add_argument(
+        "dataset",
+        nargs="?",
+        help=(
+            "optional dataset folder name, results directory, or run_manifest.json; "
+            "the newest completed dataset is used when omitted"
+        ),
+    )
+    parser.add_argument("--title", default=PLOT_TITLE)
+    parser.add_argument("--x-axis-title", default=X_AXIS_TITLE)
+    parser.add_argument("--y-axis-title", default=Y_AXIS_TITLE)
+    parser.add_argument("--colorbar-title", default=COLORBAR_TITLE)
     arguments = parser.parse_args()
-    analyze(arguments.manifest)
+    manifest_path = resolve_manifest(arguments.dataset)
+    print(f"Analyzing dataset: {manifest_path.parent.name}")
+    analyze(
+        manifest_path,
+        plot_title=arguments.title,
+        x_axis_title=arguments.x_axis_title,
+        y_axis_title=arguments.y_axis_title,
+        colorbar_title=arguments.colorbar_title,
+    )
     return 0
 
 

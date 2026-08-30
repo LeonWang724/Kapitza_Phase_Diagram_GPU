@@ -137,7 +137,9 @@ mli = 7.01600455 * amu
     
     
 
-def create_init_state(V0, alpha, nu_flo, phi):
+def create_init_state(
+    V0, alpha, nu_flo, phi, initial_lattice_depth_v0_er=None
+):
     # Parameters
     #V0 = 10.0          # lattice depth in E_R
     q = 0.0           # quasimomentum in units of k_L, should lie in [-1, 1)
@@ -169,8 +171,14 @@ def create_init_state(V0, alpha, nu_flo, phi):
     
     Er = hbar**2 * kL**2 / (2*mli)
 
+    # Historical runs prepared the initial Bloch state at twice V0. Exposing
+    # that depth makes it independently configurable and records its true value
+    # in dataset names/manifests without changing the historical default.
+    if initial_lattice_depth_v0_er is None:
+        initial_lattice_depth_v0_er = 2.0 * V0
+
     psi_x, energies, G_indices, coeffs = bloch_state_1d_plane_wave(
-        V0=2*V0,
+        V0=initial_lattice_depth_v0_er,
         xarr=x*kL,
         q=q,
         band_index=band_index,
@@ -207,7 +215,7 @@ def create_init_state(V0, alpha, nu_flo, phi):
 
     psi_0 = gauss * psi_x
     if debug_flag:
-        plot_bloch_state(x, psi_0, q, band_index, V0)
+        plot_bloch_state(x, psi_0, q, band_index, initial_lattice_depth_v0_er)
     
     psi_0_norm = np.sum(np.abs(psi_0)**2)*dx
     #print(psi_0_norm)
@@ -290,8 +298,3 @@ def create_init_state(V0, alpha, nu_flo, phi):
 if __name__ == "__main__":
     
     create_init_state(10, 30, 3.12E06, 0.0)
-
-    
-    
-    
-    

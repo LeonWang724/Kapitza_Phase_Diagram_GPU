@@ -13,10 +13,12 @@ import numpy as np
 from create_initial_state_function import create_init_state
 from cuda_workflow_common import (
     PORT_ROOT,
+    RESULTS_DIRECTORY,
     SCRIPT_DIRECTORY,
     git_provenance,
     legacy_input_path,
     locate_executable,
+    phase_dataset_label,
     query_json,
     read_config,
     run_logged,
@@ -31,20 +33,25 @@ from cuda_workflow_common import (
 # CUDA PORT: PHYSICAL PARAMETER SECTION. This is the single authoritative grid.
 # The plotting script reads these values from the generated manifest.
 # ---------------------------------------------------------------------------
-ALPHA_VALUES = np.linspace(0.0, 25.0, 26)
-DRIVE_FREQUENCY_HZ_VALUES = np.linspace(0.0, 1.5e6, 16)
+# Verified CPU-matching sweep from run_manifest.json (10 x 10 points).
+ALPHA_VALUES = np.linspace(10.0, 120.0, 10)
+DRIVE_FREQUENCY_HZ_VALUES = np.linspace(1.0e6, 6.0e6, 10)
 LATTICE_DEPTH_V0_ER = 20.0
+INITIAL_LATTICE_DEPTH_V0_ER = 40.0
 PHASE_RADIANS = 0.0
 
-# Provisional compatibility selection. The literal source behavior is legacy;
-# this default must not be called executable-equivalent until Windows comparison.
-FLOQUET_MODE = "legacy"
+# The physical update reproduced the established CPU phase diagram. The
+# cumulative legacy update is intentionally unavailable in this user workflow.
+FLOQUET_MODE = "physical"
 CUDA_DEVICE = 0
 
 
 def unique_results_directory() -> Path:
     timestamp = datetime.now(timezone.utc).strftime("cuda_%Y%m%dT%H%M%SZ")
-    path = SCRIPT_DIRECTORY / "results_cuda" / timestamp
+    parameter_label = phase_dataset_label(
+        LATTICE_DEPTH_V0_ER, INITIAL_LATTICE_DEPTH_V0_ER, PHASE_RADIANS
+    )
+    path = RESULTS_DIRECTORY / f"{parameter_label}_{timestamp}"
     if path.exists():
         raise FileExistsError(f"Refusing to reuse results directory: {path}")
     return path
@@ -59,7 +66,12 @@ def main() -> int:
     parser.add_argument("--executable", type=Path)
     parser.add_argument("--results", type=Path)
     parser.add_argument("--device", type=int, default=CUDA_DEVICE)
-    parser.add_argument("--floquet-mode", choices=("legacy", "physical"), default=FLOQUET_MODE)
+    # Retain the successful explicit command for compatibility while rejecting
+    # legacy phase-diagram requests.
+    parser.add_argument(
+        "--floquet-mode", choices=("physical",), default=FLOQUET_MODE,
+        help=argparse.SUPPRESS,
+    )
     arguments = parser.parse_args()
 
     executable = locate_executable(arguments.executable)
@@ -81,9 +93,14 @@ def main() -> int:
         (SCRIPT_DIRECTORY / "in").mkdir(exist_ok=True)
 
         manifest_path = results_root / "run_manifest.json"
+        parameter_label = phase_dataset_label(
+            LATTICE_DEPTH_V0_ER, INITIAL_LATTICE_DEPTH_V0_ER, PHASE_RADIANS
+        )
         manifest = {
             "_codex_cuda_port": "Native CUDA phase-diagram run manifest.",
             "manifest_version": 1,
+            "dataset_name": results_root.name,
+            "parameter_label": parameter_label,
             "created_utc": utc_now(),
             "status": "running",
             "results_root": str(results_root),
@@ -93,7 +110,7 @@ def main() -> int:
                 "build": query_json(executable, "--version-json"),
                 "device": query_json(executable, "--device-info", str(arguments.device)),
                 "floquet_mode": arguments.floquet_mode,
-                "compatibility_default_confirmed": False,
+                "compatibility_default_confirmed": True,
             },
             "source_tree": git_provenance(PORT_ROOT),
             "parameter_grid": {
@@ -103,6 +120,7 @@ def main() -> int:
                     float(value) for value in DRIVE_FREQUENCY_HZ_VALUES
                 ],
                 "lattice_depth_v0_er": LATTICE_DEPTH_V0_ER,
+                "initial_lattice_depth_v0_er": INITIAL_LATTICE_DEPTH_V0_ER,
                 "phase_radians": PHASE_RADIANS,
             },
             "analysis_contract": {
@@ -133,7 +151,11 @@ def main() -> int:
                 print(f"\n--- Starting native CUDA run {run_index:03d} ---")
                 print(f"alpha={alpha:.17g}, frequency={frequency_hz:.17g} Hz")
                 create_init_state(
-                    LATTICE_DEPTH_V0_ER, float(alpha), float(frequency_hz), PHASE_RADIANS
+                    LATTICE_DEPTH_V0_ER,
+                    float(alpha),
+                    float(frequency_hz),
+                    PHASE_RADIANS,
+                    INITIAL_LATTICE_DEPTH_V0_ER,
                 )
 
                 copied_inputs: dict[str, Path] = {}
@@ -162,6 +184,7 @@ def main() -> int:
                     "alpha": float(alpha),
                     "drive_frequency_hz": float(frequency_hz),
                     "lattice_depth_v0_er": LATTICE_DEPTH_V0_ER,
+                    "initial_lattice_depth_v0_er": INITIAL_LATTICE_DEPTH_V0_ER,
                     "phase_radians": PHASE_RADIANS,
                     "floquet_omega_dimensionless": float(generated_values["floquet_omega"]),
                     "status": "running",
@@ -208,7 +231,10 @@ def main() -> int:
         manifest["status"] = "completed"
         manifest["finished_utc"] = utc_now()
         write_json_atomic(manifest_path, manifest)
-        print(f"\nCompleted {run_index} runs. Manifest: {manifest_path}")
+        print(f"\nCompleted {run_index} runs.")
+        print(f"Dataset: {results_root.name}")
+        print(f"Manifest: {manifest_path}")
+        print("Create the newest phase diagram with MAKE_PHASE_DIAGRAM_CUDA.bat")
         return 0
     finally:
         import os

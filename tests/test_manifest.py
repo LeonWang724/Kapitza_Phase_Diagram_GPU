@@ -12,10 +12,22 @@ ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / "phase_diagram" / "simulation_core"
 sys.path.insert(0, str(CORE))
 
-from cuda_workflow_common import read_config, sha256_file, update_config, write_json_atomic  # noqa: E402
+from cuda_workflow_common import (  # noqa: E402
+    phase_dataset_label,
+    read_config,
+    sha256_file,
+    update_config,
+    write_json_atomic,
+)
 
 
 class ManifestHelperTests(unittest.TestCase):
+    def test_phase_dataset_label_is_descriptive_and_filename_safe(self) -> None:
+        self.assertEqual(
+            phase_dataset_label(20.0, 40.0, -0.5),
+            "LatticeDepth_20ER_InitialDepth_40ER_Phase_m0p5rad",
+        )
+
     def test_config_update_preserves_unmodified_keys(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "gpe1d.config"
@@ -42,4 +54,3 @@ class ManifestHelperTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
