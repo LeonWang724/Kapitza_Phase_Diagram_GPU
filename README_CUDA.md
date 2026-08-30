@@ -15,7 +15,7 @@ The validated delivery scope is the 1D phase-diagram path with `dynamic_potentia
 - Visual Studio 2022 with **Desktop development with C++**, MSVC x64 tools, and a Windows SDK.
 - NVIDIA CUDA Toolkit 13.3 or another toolkit explicitly supporting the installed driver, RTX 5090, and Visual Studio compiler. NVIDIA's current Windows guide lists Visual Studio 2022 as supported: https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/
 - CMake 3.27 or newer. The preset uses `CMAKE_CUDA_ARCHITECTURES=native`, documented by CMake 3.24 and later: https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html
-- A 64-bit HDF5 development installation containing `include`, `lib`, and runtime `bin` directories. Set `HDF5_ROOT` to that installation.
+- A 64-bit HDF5 development installation containing `include`, `lib`, and runtime `bin` directories. Set `HDF5_ROOT` to that installation. The HDF Group's official CMake guide documents `HDF5_ROOT` and the Windows runtime path: https://github.com/HDFGroup/hdf5/blob/develop/docs/INSTALL_CMake.md
 - Python 3.12 and the packages in `phase_diagram/simulation_core/requirements_CUDA.txt`.
 - Optional CPU-source reference: Intel oneAPI oneMKL with a discoverable `MKLConfig.cmake`.
 
@@ -55,7 +55,7 @@ RUN_SINGLE_CUDA.bat phase_diagram\simulation_core\gpe1d.config --floquet-mode le
 VALIDATE_CUDA.bat
 ```
 
-This runs the requested static, zero-alpha, driven, both-Floquet-mode, frequent-snapshot, and 3x3 grid checks. When present, both the source-built CPU executable and opaque workflow executable are used. Reports are written under `validation\results\validation_*`.
+This runs the requested static, zero-alpha, driven, both-Floquet-mode, frequent-snapshot, non-unit-`step_x` diagnostic probe, and 3x3 grid checks. When present, both the source-built CPU executable and opaque workflow executable are used. Reports are written under `validation\results\validation_*`.
 
 The default tolerances in `validation_cases.json` are initial acceptance hypotheses. They become documented evidence only after a completed Windows report. Capture `nvidia-smi` output during a CUDA run as external GPU-use evidence.
 
@@ -84,4 +84,3 @@ Each real-time iteration performs:
 8. Post-step snapshot and diagnostic output at the original iteration indices.
 
 HDF5 remains CPU-side. Device-to-host transfers occur only for snapshots and reported diagnostic scalars.
-

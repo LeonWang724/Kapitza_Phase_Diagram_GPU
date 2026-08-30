@@ -3,7 +3,9 @@
 
 `run_validation.py` generates identical per-case HDF5 inputs and separate CPU/CUDA configuration files. It never writes CPU and CUDA snapshots into the same directory.
 
-For legacy Floquet mode it compares every common checkpoint after removing one global complex phase. Reports include wavefunction and density errors, normalization, and all energy columns. The physical Floquet case is exercised separately because the supplied CPU source implements only cumulative legacy scaling.
+For legacy Floquet mode it compares every common checkpoint after removing one global complex phase. Reports include wavefunction and density errors, normalization, and all energy columns. The opaque/source CPU trajectory is also compared against the CUDA physical mode as a compatibility probe, not as an expected match.
+
+A short non-unit-`step_x` case compares the executable's `InitOverlap` column with both `sum(|psi_initial|^2 |psi|^2)` and `step_x * sum(|psi_initial|^2 |psi|^2)`. This is designed to recover whether the opaque diagnostic contains an integration step.
 
 The default CPU references are:
 
@@ -13,4 +15,3 @@ The default CPU references are:
 The optional 3x3 grid uses the established cropped, unnormalized `sum(|psi|^4)` metric over 30 final snapshots. Default tolerances are hypotheses to be tested on the Windows machine, not an advance claim of equivalence.
 
 Run from the project root with `VALIDATE_CUDA.bat`.
-

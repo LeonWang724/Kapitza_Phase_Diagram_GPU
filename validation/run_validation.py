@@ -28,7 +28,10 @@ from cuda_workflow_common import (  # noqa: E402
     utc_now,
     write_json_atomic,
 )
-from compare_checkpoints import compare as compare_checkpoints  # noqa: E402
+from compare_checkpoints import (  # noqa: E402
+    compare as compare_checkpoints,
+    read_status,
+)
 from compare_phase_diagrams import compare as compare_phase_diagrams  # noqa: E402
 from generate_validation_cases import generate_case, load_specification  # noqa: E402
 
@@ -106,6 +109,47 @@ def final_snapshot(output: Path) -> Path:
     if not snapshots:
         raise FileNotFoundError(output)
     return snapshots[-1]
+
+
+def probe_init_overlap_definition(
+    initial_path: Path, output: Path, status_path: Path, step_x: float
+) -> dict[str, Any] | None:
+    status = read_status(status_path)
+    if not status or not any("InitOverlap" in row for row in status.values()):
+        return None
+    initial_density = read_probability(initial_path)
+    discrete_errors = []
+    integrated_errors = []
+    compared = 0
+    for snapshot in sorted(output.glob("*.h5"), key=lambda path: int(path.stem)):
+        checkpoint = int(snapshot.stem)
+        if checkpoint not in status or "InitOverlap" not in status[checkpoint]:
+            continue
+        density = read_probability(snapshot)
+        discrete = float(np.sum(initial_density * density))
+        integrated = step_x * discrete
+        observed = status[checkpoint]["InitOverlap"]
+        discrete_errors.append(abs(observed - discrete))
+        integrated_errors.append(abs(observed - integrated))
+        compared += 1
+    if not compared:
+        return None
+    maximum_discrete = max(discrete_errors)
+    maximum_integrated = max(integrated_errors)
+    if np.isclose(maximum_discrete, maximum_integrated, rtol=1.0e-12, atol=1.0e-15):
+        closer_candidate = "indistinguishable_at_this_step_x"
+    else:
+        closer_candidate = (
+            "sum_density_product_without_dx"
+            if maximum_discrete < maximum_integrated
+            else "step_x_times_sum_density_product"
+        )
+    return {
+        "checkpoints_compared": compared,
+        "maximum_error_discrete_without_dx": maximum_discrete,
+        "maximum_error_integrated_with_dx": maximum_integrated,
+        "closer_candidate": closer_candidate,
+    }
 
 
 def phase_metric(output: Path, final_count: int, cut: int) -> float:
@@ -223,8 +267,12 @@ def write_markdown_report(report: dict[str, Any], path: Path) -> None:
             lines.append(f"| {case['name']} | n/a | CUDA mode exercised only | n/a | n/a |")
             continue
         for label, comparison in case["comparisons"].items():
+            expected = comparison.get("expected_to_match", True)
+            result = (
+                "PASS" if comparison.get("within_tolerance") else "FAIL"
+            ) if expected else "COMPATIBILITY PROBE"
             lines.append(
-                f"| {case['name']} | {label} | {'PASS' if comparison['within_tolerance'] else 'FAIL'} "
+                f"| {case['name']} | {label} | {result} "
                 f"| {comparison['maximum_wavefunction_relative_l2']:.6e} "
                 f"| {comparison['maximum_density_absolute_error']:.6e} |"
             )
@@ -303,36 +351,47 @@ def main() -> int:
                     key: value for key, value in generated.items() if key != "config"
                 },
                 "comparisons": {},
+                "overlap_definition_probes": {},
             }
-            if case["floquet_mode"] == "legacy":
-                step_x = float(read_config(cuda_config)["step_x"])
-                for label, cpu_executable in cpu_references.items():
-                    cpu_root = case_root / label
-                    cpu_output = cpu_root / "out"
-                    cpu_status = cpu_root / "status.csv"
-                    cpu_config = cpu_root / "gpe1d.config"
-                    prepare_variant_config(
-                        generated["config"], cpu_config, cpu_output, cpu_status
+            step_x = float(read_config(cuda_config)["step_x"])
+            for label, cpu_executable in cpu_references.items():
+                cpu_root = case_root / label
+                cpu_output = cpu_root / "out"
+                cpu_status = cpu_root / "status.csv"
+                cpu_config = cpu_root / "gpe1d.config"
+                prepare_variant_config(
+                    generated["config"], cpu_config, cpu_output, cpu_status
+                )
+                code = run_cpu_reference(
+                    cpu_executable, cpu_config, cpu_root / "solver.log"
+                )
+                if code != 0:
+                    raise RuntimeError(
+                        f"CPU reference {label} failed for case {case['name']}."
                     )
-                    code = run_cpu_reference(
-                        cpu_executable, cpu_config, cpu_root / "solver.log"
-                    )
-                    if code != 0:
-                        raise RuntimeError(
-                            f"CPU reference {label} failed for case {case['name']}."
-                        )
-                    comparison = compare_checkpoints(
-                        cpu_output,
-                        cuda_output,
-                        cpu_status,
-                        cuda_status,
-                        step_x,
-                        case_root / f"compare_{label}_cuda.csv",
-                    )
-                    comparison["within_tolerance"] = passed_tolerances(
-                        comparison, specification["defaults"]
-                    )
-                    case_report["comparisons"][label] = comparison
+                comparison = compare_checkpoints(
+                    cpu_output,
+                    cuda_output,
+                    cpu_status,
+                    cuda_status,
+                    step_x,
+                    case_root / f"compare_{label}_cuda.csv",
+                )
+                comparison["expected_to_match"] = case["floquet_mode"] == "legacy"
+                comparison["within_tolerance"] = (
+                    passed_tolerances(comparison, specification["defaults"])
+                    if comparison["expected_to_match"]
+                    else None
+                )
+                case_report["comparisons"][label] = comparison
+                overlap_probe = probe_init_overlap_definition(
+                    Path(generated["inputs"]["lattice_gauss.h5"]["path"]),
+                    cpu_output,
+                    cpu_status,
+                    step_x,
+                )
+                if overlap_probe is not None:
+                    case_report["overlap_definition_probes"][label] = overlap_probe
             report["cases"].append(case_report)
             write_json_atomic(report_path, report)
 
@@ -346,6 +405,22 @@ def main() -> int:
             ),
             "definition": "max abs density difference for identical driven inputs",
         }
+        legacy_case = next(item for item in report["cases"] if item["name"] == "driven_legacy")
+        physical_case = next(item for item in report["cases"] if item["name"] == "driven_physical")
+        compatibility = {}
+        for label in set(legacy_case["comparisons"]).intersection(physical_case["comparisons"]):
+            legacy_error = legacy_case["comparisons"][label][
+                "maximum_wavefunction_relative_l2"
+            ]
+            physical_error = physical_case["comparisons"][label][
+                "maximum_wavefunction_relative_l2"
+            ]
+            compatibility[label] = {
+                "legacy_maximum_wavefunction_relative_l2": legacy_error,
+                "physical_maximum_wavefunction_relative_l2": physical_error,
+                "closer_mode": "legacy" if legacy_error < physical_error else "physical",
+            }
+        report["floquet_compatibility_probe"] = compatibility
 
         if not arguments.skip_small_grid:
             preferred_label = (
@@ -364,6 +439,7 @@ def main() -> int:
             comparison
             for case in report["cases"]
             for comparison in case["comparisons"].values()
+            if comparison.get("expected_to_match", True)
         ]
         report["all_short_time_comparisons_within_tolerance"] = bool(
             all_comparisons and all(item["within_tolerance"] for item in all_comparisons)
@@ -383,4 +459,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

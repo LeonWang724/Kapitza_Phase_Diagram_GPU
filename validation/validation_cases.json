@@ -47,6 +47,17 @@
       "iterations": 8,
       "save_every": 1,
       "show_every": 1
+    },
+    {
+      "name": "corr_probe_nonunit_step_x",
+      "alpha": 10.0,
+      "frequency_hz": 1000000.0,
+      "floquet_enabled": true,
+      "floquet_mode": "legacy",
+      "iterations": 8,
+      "save_every": 1,
+      "show_every": 1,
+      "step_x": 0.5
     }
   ],
   "small_grid": {
@@ -59,4 +70,3 @@
     "cut_points_each_edge": 100
   }
 }
-

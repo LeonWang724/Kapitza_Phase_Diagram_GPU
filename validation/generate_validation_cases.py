@@ -62,6 +62,8 @@ def generate_case(
         "floquet_potential_file": copied["vflo.h5"],
         "floquet_potential": str(bool(case["floquet_enabled"])).lower(),
     }
+    if "step_x" in case:
+        updates["step_x"] = case["step_x"]
     update_config(config_path, updates)
     return {
         "name": case["name"],
@@ -105,4 +107,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -38,6 +38,5 @@ No copied original source or workflow file was modified to implement the port.
 
 - Stochastic `dynamic_potential=true`: the original uses time-seeded MKL VSL random phases. A CUDA version needs an explicitly chosen cuRAND generator and a statistical, rather than trajectory-identical, validation contract.
 - 2D/3D solvers and the 3D reduction path.
-- Opaque `Corr` recovery and compatibility-default selection.
+- Windows execution of the included non-unit-`step_x` `Corr` probe and compatibility-default selection.
 - Windows compile, RTX 5090 execution, tolerance evaluation, `nvidia-smi` evidence, and performance measurements.
-
