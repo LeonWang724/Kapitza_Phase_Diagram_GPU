@@ -17,7 +17,17 @@ set "SETUP_RESULT=%ERRORLEVEL%"
 
 echo.
 if "%SETUP_RESULT%"=="0" (
+  call "%~dp0LOAD_CUDA_ENV.bat" --with-compiler
   echo SETUP COMPLETED SUCCESSFULLY.
+  echo.
+  echo Dependency paths active in this window:
+  where python.exe
+  where cmake.exe
+  where nvcc.exe
+  where cl.exe
+  echo.
+  echo Python and the project packages use: %~dp0.venv
+  echo The paths were also saved for future VS Code terminals.
   echo You can now run CHECK_CUDA.bat and then BUILD_CUDA.bat.
 ) else (
   echo SETUP FAILED with exit code %SETUP_RESULT%.

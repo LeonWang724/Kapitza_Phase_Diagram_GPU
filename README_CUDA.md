@@ -27,6 +27,12 @@ Git, CMake, the Visual Studio 2022 C++ build tools, CUDA Toolkit 13.3.1, HDF5
 2.1.1, a project-local `.venv`, and all packages in `requirements_CUDA.txt`.
 The full transcript is saved as `SETUP_WINDOWS.log`.
 
+Setup permanently adds the installed Python directory, Python `Scripts`, and
+the project `.venv\Scripts` directory to the current user's PATH. It records
+the selected interpreter in `GPE_PYTHON` and the project directory in
+`GPE_CUDA_PROJECT_ROOT`. CMake, CUDA, and HDF5 are added to the machine PATH.
+Open a new VS Code terminal after setup to inherit those persistent values.
+
 The CUDA installer can install its bundled display driver, and setup verifies
 that `nvidia-smi` works; it does not separately choose between NVIDIA's latest
 Game Ready and Studio driver branches. Setup also does not install the optional

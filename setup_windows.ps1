@@ -67,6 +67,27 @@ function Add-MachinePathEntry {
     }
 }
 
+function Add-UserPathEntry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Entry,
+        [switch]$Prepend
+    )
+
+    $current = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $normalizedEntry = $Entry.TrimEnd('\')
+    $parts = @($current -split ';' | Where-Object { $_ })
+    $filtered = @($parts | Where-Object {
+        $_.Trim().TrimEnd('\') -ine $normalizedEntry
+    })
+    if ($Prepend) {
+        $newParts = @($Entry) + $filtered
+    }
+    else {
+        $newParts = $filtered + @($Entry)
+    }
+    [Environment]::SetEnvironmentVariable('Path', ($newParts -join ';'), 'User')
+}
+
 function Install-WingetPackage {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
@@ -335,7 +356,27 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'Python dependency installation failed.'
     }
-    $env:Path = "$(Join-Path $venv 'Scripts');$env:Path"
+
+    Write-Host "`n=== Saving dependency paths for future terminals ===" -ForegroundColor Cyan
+    $pythonDirectory = Split-Path -Parent $python
+    $pythonScripts = Join-Path $pythonDirectory 'Scripts'
+    $pythonLauncher = Join-Path $env:LOCALAPPDATA 'Programs\Python\Launcher'
+    $venvScripts = Join-Path $venv 'Scripts'
+    Add-UserPathEntry -Entry $pythonDirectory
+    if (Test-Path $pythonScripts) {
+        Add-UserPathEntry -Entry $pythonScripts
+    }
+    if (Test-Path $pythonLauncher) {
+        Add-UserPathEntry -Entry $pythonLauncher
+    }
+    Add-UserPathEntry -Entry $venvScripts -Prepend
+    [Environment]::SetEnvironmentVariable('GPE_CUDA_PROJECT_ROOT', $PSScriptRoot, 'User')
+    [Environment]::SetEnvironmentVariable('GPE_PYTHON', $venvPython, 'User')
+
+    Refresh-ProcessPath
+    $env:Path = "$venvScripts;$(Join-Path $cudaRoot 'bin');$(Join-Path $hdf5Root 'bin');$cmakeBin;$env:Path"
+    Write-Host "Project Python: $venvPython"
+    Write-Host 'Python, pip, CMake, CUDA, and HDF5 paths are now persistent.'
 
     Write-Host "`n=== Verifying the complete environment ===" -ForegroundColor Cyan
     $env:GPE_NO_PAUSE = '1'
@@ -345,7 +386,7 @@ try {
     }
 
     Write-Host "`nSetup is complete." -ForegroundColor Green
-    Write-Host 'Run BUILD_CUDA.bat next. The batch files now load all paths automatically.'
+    Write-Host 'Open a new terminal, or run BUILD_CUDA.bat next. The batch files load all paths automatically.'
     if ($restartRequired) {
         Write-Host 'One installer requested a Windows restart. Restart before building if CHECK_CUDA.bat reports a driver or compiler error.' -ForegroundColor Yellow
     }
