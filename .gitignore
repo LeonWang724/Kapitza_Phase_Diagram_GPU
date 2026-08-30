@@ -1,0 +1,24 @@
+# Codex CUDA Port: generated build, run, and validation artifacts.
+build/
+results_cuda/
+validation/results/
+**/__pycache__/
+*.pyc
+*.pyo
+*.log
+.vs/
+.DS_Store
+
+# The following directories are byte-for-byte baseline/reference material. The
+# CUDA port tracks its additions, provenance hashes, and documentation instead
+# of duplicating hundreds of megabytes of historical data in Git objects.
+/single_run_simulation/
+/reference/gpe1d_2-master/
+/phase_diagram/*
+!/phase_diagram/simulation_core/
+/phase_diagram/simulation_core/*
+!/phase_diagram/simulation_core/cuda_workflow_common.py
+!/phase_diagram/simulation_core/run_phase_diagram_CUDA.py
+!/phase_diagram/simulation_core/run_single_CUDA.py
+!/phase_diagram/simulation_core/make_phase_diagram_CUDA.py
+!/phase_diagram/simulation_core/requirements_CUDA.txt

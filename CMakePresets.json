@@ -1,0 +1,44 @@
+{
+  "$comment": "Codex CUDA Port: Windows Visual Studio presets for gpe1d_cuda.",
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 27,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-vs2022",
+      "displayName": "Windows VS 2022 + native CUDA GPU",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "GPE_CUDA_STRICT_FP": "ON",
+        "GPE_BUILD_CPU_REFERENCE": "OFF"
+      }
+    },
+    {
+      "name": "windows-vs2022-with-cpu-reference",
+      "inherits": "windows-vs2022",
+      "displayName": "Windows VS 2022 + CUDA + untouched MKL CPU reference",
+      "cacheVariables": {
+        "GPE_BUILD_CPU_REFERENCE": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-vs2022",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-release-with-cpu-reference",
+      "configurePreset": "windows-vs2022-with-cpu-reference",
+      "configuration": "Release"
+    }
+  ]
+}
+
