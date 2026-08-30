@@ -63,7 +63,12 @@ target_compile_definitions(gpe1d_cuda PRIVATE
     NOMINMAX
 )
 if(MSVC)
-    target_compile_options(gpe1d_cuda PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4>)
+    target_compile_options(gpe1d_cuda PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:/W4>
+        $<$<COMPILE_LANGUAGE:CXX>:/Zc:preprocessor>
+        # CUDA 13's CCCL headers require MSVC's standards-conforming preprocessor.
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Zc:preprocessor>
+    )
 else()
     target_compile_options(gpe1d_cuda PRIVATE
         $<$<COMPILE_LANGUAGE:CXX>:-Wall>
