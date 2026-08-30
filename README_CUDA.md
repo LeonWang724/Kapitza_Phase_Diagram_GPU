@@ -15,6 +15,7 @@ The validated delivery scope is the 1D phase-diagram path with `dynamic_potentia
 - Visual Studio 2022 with **Desktop development with C++**, MSVC x64 tools, and a Windows SDK.
 - NVIDIA CUDA Toolkit 13.3 or another toolkit explicitly supporting the installed driver, RTX 5090, and Visual Studio compiler. NVIDIA's current Windows guide lists Visual Studio 2022 as supported: https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/
 - CMake 3.27 or newer. The preset uses `CMAKE_CUDA_ARCHITECTURES=native`, documented by CMake 3.24 and later: https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html
+- Ninja 1.11 or newer. The `Ninja Multi-Config` generator uses the MSVC and CUDA compiler environment loaded by `LOAD_CUDA_ENV.bat`.
 - A 64-bit HDF5 development installation containing `include`, `lib`, and runtime `bin` directories. Set `HDF5_ROOT` to that installation. The HDF Group's official CMake guide documents `HDF5_ROOT` and the Windows runtime path: https://github.com/HDFGroup/hdf5/blob/develop/docs/INSTALL_CMake.md
 - Python 3.12 and the packages in `phase_diagram/simulation_core/requirements_CUDA.txt`.
 - Optional CPU-source reference: Intel oneAPI oneMKL with a discoverable `MKLConfig.cmake`.
@@ -23,7 +24,7 @@ The validated delivery scope is the 1D phase-diagram path with `dynamic_potentia
 
 The easiest supported path is to double-click `SETUP_WINDOWS.bat`, approve the
 Administrator prompt, and let it finish. It installs or repairs Python 3.12,
-Git, CMake, the Visual Studio 2022 C++ build tools, CUDA Toolkit 13.3.1, HDF5
+Git, CMake, Ninja, the Visual Studio 2022 C++ build tools, CUDA Toolkit 13.3.1, HDF5
 2.1.1, a project-local `.venv`, and all packages in `requirements_CUDA.txt`.
 The full transcript is saved as `SETUP_WINDOWS.log`.
 
@@ -52,6 +53,10 @@ Those three files now pause before closing. All CUDA batch files call
 CMake, CUDA, HDF5, and (when compiling) the Visual Studio x64 developer
 environment. A special VS command prompt and manual PATH editing are no longer
 required.
+
+The build uses CMake's `Ninja Multi-Config` generator with MSVC and `nvcc`.
+This intentionally avoids a dependency on NVIDIA's optional Visual Studio
+MSBuild Build Customizations, which are not required for this command-line build.
 
 ## Build
 

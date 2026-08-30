@@ -5,7 +5,7 @@ cd /d "%~dp0"
 title Native CUDA solver setup
 
 echo This installs or repairs the required Windows build environment:
-echo   Python 3.12, Git, CMake, Visual Studio 2022 C++ tools,
+echo   Python 3.12, Git, CMake, Ninja, Visual Studio 2022 C++ tools,
 echo   CUDA Toolkit 13.3.1, HDF5 2.1.1, and Python packages.
 echo.
 echo Windows may show an Administrator approval prompt.
@@ -23,6 +23,7 @@ if "%SETUP_RESULT%"=="0" (
   echo Dependency paths active in this window:
   where python.exe
   where cmake.exe
+  where ninja.exe
   where nvcc.exe
   where cl.exe
   echo.

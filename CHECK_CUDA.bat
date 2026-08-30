@@ -26,6 +26,10 @@ echo === CUDA compiler ===
 nvcc --version
 if errorlevel 1 exit /b 1
 echo.
+echo === Ninja build tool ===
+ninja --version
+if errorlevel 1 exit /b 1
+echo.
 echo === CMake ===
 cmake --version
 if errorlevel 1 exit /b 1

@@ -6,6 +6,7 @@ if exist "%~dp0.venv\Scripts\python.exe" set "PATH=%~dp0.venv\Scripts;%PATH%"
 if exist "%ProgramFiles%\Python312\python.exe" set "PATH=%ProgramFiles%\Python312;%PATH%"
 if exist "%LocalAppData%\Programs\Python\Python312\python.exe" set "PATH=%LocalAppData%\Programs\Python\Python312;%PATH%"
 if exist "%ProgramFiles%\CMake\bin\cmake.exe" set "PATH=%ProgramFiles%\CMake\bin;%PATH%"
+if exist "%LocalAppData%\Microsoft\WinGet\Links\ninja.exe" set "PATH=%LocalAppData%\Microsoft\WinGet\Links;%PATH%"
 
 if defined CUDA_PATH if not exist "%CUDA_PATH%\bin\nvcc.exe" set "CUDA_PATH="
 if not defined CUDA_PATH if exist "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v13.3\bin\nvcc.exe" set "CUDA_PATH=%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v13.3"

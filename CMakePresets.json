@@ -7,10 +7,9 @@
   },
   "configurePresets": [
     {
-      "name": "windows-vs2022",
-      "displayName": "Windows VS 2022 + native CUDA GPU",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
+      "name": "windows-ninja",
+      "displayName": "Windows MSVC + Ninja Multi-Config + native CUDA GPU",
+      "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_CUDA_ARCHITECTURES": "native",
@@ -19,9 +18,9 @@
       }
     },
     {
-      "name": "windows-vs2022-with-cpu-reference",
-      "inherits": "windows-vs2022",
-      "displayName": "Windows VS 2022 + CUDA + untouched MKL CPU reference",
+      "name": "windows-ninja-with-cpu-reference",
+      "inherits": "windows-ninja",
+      "displayName": "Windows MSVC + Ninja + CUDA + untouched MKL CPU reference",
       "cacheVariables": {
         "GPE_BUILD_CPU_REFERENCE": "ON"
       }
@@ -30,12 +29,12 @@
   "buildPresets": [
     {
       "name": "windows-release",
-      "configurePreset": "windows-vs2022",
+      "configurePreset": "windows-ninja",
       "configuration": "Release"
     },
     {
       "name": "windows-release-with-cpu-reference",
-      "configurePreset": "windows-vs2022-with-cpu-reference",
+      "configurePreset": "windows-ninja-with-cpu-reference",
       "configuration": "Release"
     }
   ]

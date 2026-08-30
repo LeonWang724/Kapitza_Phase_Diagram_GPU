@@ -159,7 +159,7 @@ function Find-CudaRoot {
         try {
             $currentName = Split-Path -Leaf $env:CUDA_PATH
             $currentVersion = [version]$currentName.TrimStart('v')
-            if ($currentVersion -ge [version]'12.8') {
+            if ($currentVersion.Major -eq 13 -and $currentVersion.Minor -eq 3) {
                 return $env:CUDA_PATH
             }
         }
@@ -174,7 +174,7 @@ function Find-CudaRoot {
         Sort-Object { try { [version]$_.Name.TrimStart('v') } catch { [version]'0.0' } } -Descending
     foreach ($version in $versions) {
         try { $parsedVersion = [version]$version.Name.TrimStart('v') } catch { continue }
-        if ($parsedVersion -ge [version]'12.8' -and
+        if ($parsedVersion.Major -eq 13 -and $parsedVersion.Minor -eq 3 -and
             (Test-Path (Join-Path $version.FullName 'bin\nvcc.exe'))) {
                 return $version.FullName
             }
@@ -215,10 +215,28 @@ try {
     Install-WingetPackage -Id 'Python.Python.3.12'
     Install-WingetPackage -Id 'Git.Git'
     Install-WingetPackage -Id 'Kitware.CMake'
+    Install-WingetPackage -Id 'Ninja-build.Ninja'
     Install-WingetPackage -Id 'Microsoft.VisualStudio.2022.BuildTools' `
         -Override '--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended'
 
     Refresh-ProcessPath
+
+    $ninjaCommand = Get-Command 'ninja.exe' -ErrorAction SilentlyContinue
+    if ($ninjaCommand) {
+        $ninjaPath = $ninjaCommand.Source
+    }
+    else {
+        $ninjaCandidates = @(
+            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\ninja.exe'),
+            (Join-Path $env:ProgramFiles 'Ninja\ninja.exe')
+        )
+        $ninjaPath = $ninjaCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    }
+    if (-not $ninjaPath) {
+        throw 'Ninja was installed, but ninja.exe could not be found.'
+    }
+    $ninjaBin = Split-Path -Parent $ninjaPath
+    $env:Path = "$ninjaBin;$env:Path"
 
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path $vswhere)) {
@@ -369,14 +387,15 @@ try {
     if (Test-Path $pythonLauncher) {
         Add-UserPathEntry -Entry $pythonLauncher
     }
+    Add-UserPathEntry -Entry $ninjaBin
     Add-UserPathEntry -Entry $venvScripts -Prepend
     [Environment]::SetEnvironmentVariable('GPE_CUDA_PROJECT_ROOT', $PSScriptRoot, 'User')
     [Environment]::SetEnvironmentVariable('GPE_PYTHON', $venvPython, 'User')
 
     Refresh-ProcessPath
-    $env:Path = "$venvScripts;$(Join-Path $cudaRoot 'bin');$(Join-Path $hdf5Root 'bin');$cmakeBin;$env:Path"
+    $env:Path = "$venvScripts;$ninjaBin;$(Join-Path $cudaRoot 'bin');$(Join-Path $hdf5Root 'bin');$cmakeBin;$env:Path"
     Write-Host "Project Python: $venvPython"
-    Write-Host 'Python, pip, CMake, CUDA, and HDF5 paths are now persistent.'
+    Write-Host 'Python, pip, CMake, Ninja, CUDA, and HDF5 paths are now persistent.'
 
     Write-Host "`n=== Verifying the complete environment ===" -ForegroundColor Cyan
     $env:GPE_NO_PAUSE = '1'
